@@ -1,0 +1,50 @@
+import feedparser
+from telegram import Bot
+import asyncio
+import datetime
+import os
+
+bot_token = '7630716522:AAGvtj2kajE5CMKLEgiBq3R8ObRByoEie9Q'
+chat_id = -1002776364232
+
+# Feeds categorizados por día
+feeds_por_dia = {
+    'Monday':    {'📰 Noticias GL': 'https://news.google.com/rss/search?q=contaminación+lumínica&hl=gl&gl=ES&ceid=ES:gl'},
+    'Wednesday': {'📰 Noticias ES': 'https://news.google.com/rss/search?q=contaminación+lumínica&hl=es&gl=ES&ceid=ES:es'},
+    'Friday':    {'📰 Noticias INT': 'https://news.google.com/rss/search?q=light+pollution&hl=en&gl=US&ceid=US:en'},
+    'Thursday':  {'📚 arXiv': 'http://export.arxiv.org/api/query?search_query=all:light+pollution&start=0&max_results=3'}
+}
+
+async def publicar_noticias(feeds):
+    bot = Bot(token=bot_token)
+    for fuente, url in feeds.items():
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:3]:
+            mensaje = f"{fuente}\n{entry.title}\n🔗 {entry.link}"
+            try:
+                await bot.send_message(chat_id=chat_id, text=mensaje)
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(f"Error enviando desde {fuente}: {e}")
+
+async def main():
+    hoy = datetime.datetime.utcnow().strftime('%A')  # Día en inglés (Monday, etc.)
+    publicar = False
+
+    if hoy in ['Monday', 'Wednesday', 'Friday']:
+        feeds = feeds_por_dia[hoy]
+        publicar = True
+
+    elif hoy == 'Thursday':
+        # Semana par o impar (jueves sí, jueves no)
+        semana_actual = datetime.datetime.utcnow().isocalendar()[1]  # número de semana
+        if semana_actual % 2 == 0:
+            feeds = feeds_por_dia['Thursday']
+            publicar = True
+
+    if publicar:
+        await publicar_noticias(feeds)
+    else:
+        print(f"No se publica nada el {hoy}")
+
+asyncio.run(main())
